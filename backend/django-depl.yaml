@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-depl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: django-depl
+  template:
+    metadata:
+      labels:
+        app: djang-depl
+    spec:
+      containers:
+      - name: djang-depl
+        image: <Image>
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8000
+        env: # Must add env values to secret.yaml
+        - name: PG_USER
+          value: postgres
+        - name: PG_PASSWORD
+          value: admin
+        - name: PG_DB
+          value: postgres
+        - name: PG_HOST
+          value: localhost
+        - name: PG_PORT
+          value: "5432"
+      initContainers: # Configuring Django to start just after the DB
+        - name: wait-for-db
+          image: busybox
+          command: ['sh', '-c', 'until nc -zv $PG_HOST $PG_PORT; do echo "Waiting for Postgresql..."; sleep 5; done']
+          env: # Must add env values to secret.yaml
+            - name: PG_HOST
+              value: localhost
+            - name: PG_PORT
+              value: "5432"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: django-service
+spec:
+  selector:
+    app: djang-depl
+  type: LoadBalancer
+  ports:
+    - port: 8000
+      targetPort: 8000
